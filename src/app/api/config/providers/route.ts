@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { portfolioManager } from '@/lib/trading/portfolio';
+import { marketRegistry } from '@/lib/markets/registry';
 import { ensureInitialized } from '@/lib/init';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   await ensureInitialized();
-  const summary = await portfolioManager.getSummary();
-  return NextResponse.json(summary);
+  const info = marketRegistry.getProviderInfo();
+  return NextResponse.json(info);
 }

@@ -5,17 +5,17 @@ import { buildReasoningPrompt } from './prompts';
 import { marketRegistry } from '@/lib/markets/registry';
 import { v4 as uuidv4 } from 'uuid';
 
-function getMarketDataString(marketType: MarketType): string {
+async function getMarketDataString(marketType: MarketType): Promise<string> {
   const provider = marketRegistry.getProvider(marketType);
-  const assets = provider.getAssets();
-  const data = assets.map((asset) => {
-    const price = provider.getCurrentPrice(asset.id);
+  const assets = await provider.getAssets();
+  const data = await Promise.all(assets.map(async (asset) => {
+    const price = await provider.getCurrentPrice(asset.id);
     return {
       id: asset.id, symbol: asset.symbol, name: asset.name,
       price: price.last, change24h: price.changePercent24h,
       volume24h: price.volume24h, bid: price.bid, ask: price.ask,
     };
-  });
+  }));
   return JSON.stringify(data, null, 2);
 }
 
@@ -24,7 +24,7 @@ export async function reasonAboutTrade(
   question: string
 ): Promise<AnalysisResponse> {
   const openai = getOpenAIClient();
-  const marketData = getMarketDataString(marketType);
+  const marketData = await getMarketDataString(marketType);
   const { systemPrompt, userPrompt } = buildReasoningPrompt(marketType, marketData, question);
 
   const completion = await openai.chat.completions.create({

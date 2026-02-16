@@ -1,14 +1,16 @@
 import { marketStream } from '@/lib/websocket/market-stream';
+import { ensureInitialized } from '@/lib/init';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(): Promise<Response> {
+  await ensureInitialized();
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
-    start(controller) {
+    async start(controller) {
       // Send initial data
-      const initial = marketStream.getLatestPrices();
+      const initial = await marketStream.getLatestPrices();
       const initData = `data: ${JSON.stringify(initial)}\n\n`;
       controller.enqueue(encoder.encode(initData));
 

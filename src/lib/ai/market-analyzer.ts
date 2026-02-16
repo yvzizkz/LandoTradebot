@@ -5,11 +5,11 @@ import { buildAnalysisPrompt } from './prompts';
 import { marketRegistry } from '@/lib/markets/registry';
 import { v4 as uuidv4 } from 'uuid';
 
-function getMarketDataString(marketType: MarketType): string {
+async function getMarketDataString(marketType: MarketType): Promise<string> {
   const provider = marketRegistry.getProvider(marketType);
-  const assets = provider.getAssets();
-  const data = assets.map((asset) => {
-    const price = provider.getCurrentPrice(asset.id);
+  const assets = await provider.getAssets();
+  const data = await Promise.all(assets.map(async (asset) => {
+    const price = await provider.getCurrentPrice(asset.id);
     return {
       id: asset.id,
       symbol: asset.symbol,
@@ -22,7 +22,7 @@ function getMarketDataString(marketType: MarketType): string {
       bid: price.bid,
       ask: price.ask,
     };
-  });
+  }));
   return JSON.stringify(data, null, 2);
 }
 
@@ -32,7 +32,7 @@ export async function analyzeMarket(
   customPrompt?: string
 ): Promise<AnalysisResponse> {
   const openai = getOpenAIClient();
-  const marketData = getMarketDataString(marketType);
+  const marketData = await getMarketDataString(marketType);
   const { systemPrompt, userPrompt } = buildAnalysisPrompt(marketType, analysisType, marketData, customPrompt);
 
   const completion = await openai.chat.completions.create({

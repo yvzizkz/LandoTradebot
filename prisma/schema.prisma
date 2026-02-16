@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model TradeOrder {
+  id               String   @id @default(uuid())
+  exchangeOrderId  String?
+  exchange         String   // "simulator", "binance", "coinbase", "oanda", "kalshi"
+  marketType       String   // "crypto", "forex", "kalshi", "polymarket", "sports"
+  assetId          String
+  assetSymbol      String
+  side             String   // "buy" | "sell"
+  orderType        String   // "market" | "limit"
+  requestedQty     Float
+  filledQty        Float    @default(0)
+  requestedPrice   Float?
+  avgFillPrice     Float?
+  fee              Float    @default(0)
+  feeCurrency      String   @default("USD")
+  status           String   // "pending" | "open" | "filled" | "partially_filled" | "cancelled" | "rejected"
+  errorMessage     String?
+  rawResponse      String?  // JSON string of exchange response
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  filledAt         DateTime?
+
+  @@index([marketType])
+  @@index([assetId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Position {
+  id          String   @id @default(uuid())
+  exchange    String
+  marketType  String
+  assetId     String
+  assetSymbol String
+  assetName   String
+  side        String   // "buy" | "sell"
+  quantity    Float
+  entryPrice  Float
+  totalCost   Float
+  realizedPnl Float    @default(0)
+  openedAt    DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  closedAt    DateTime?
+  isClosed    Boolean  @default(false)
+
+  @@index([marketType])
+  @@index([assetId])
+  @@index([isClosed])
+}
+
+model PortfolioSnapshot {
+  id          String   @id @default(uuid())
+  totalValue  Float
+  cashBalance Float
+  timestamp   DateTime @default(now())
+
+  @@index([timestamp])
+}
+
+model CashLedger {
+  id          String   @id @default(uuid())
+  amount      Float    // positive = credit, negative = debit
+  balance     Float    // running balance after this entry
+  reason      String   // "initial_deposit" | "trade_buy" | "trade_sell" | "fee"
+  referenceId String?  // trade order id reference
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model ExchangeConfig {
+  id        String   @id @default(uuid())
+  exchange  String   @unique // "binance", "coinbase", "oanda", "kalshi"
+  enabled   Boolean  @default(true)
+  sandbox   Boolean  @default(true)
+  metadata  String?  // JSON string for extra config
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

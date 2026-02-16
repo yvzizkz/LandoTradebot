@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { runAnalysis } from '@/lib/ai/engine';
 import { MarketType, MARKET_TYPES } from '@/types/market';
 import { AnalysisType } from '@/types/ai';
+import { ensureInitialized } from '@/lib/init';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,7 @@ const analysisSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    await ensureInitialized();
     const body = await request.json();
     const parsed = analysisSchema.parse(body);
 

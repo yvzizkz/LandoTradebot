@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { executeTrade } from '@/lib/trading/executor';
 import { portfolioManager } from '@/lib/trading/portfolio';
-import { MarketType, MARKET_TYPES } from '@/types/market';
+import { ensureInitialized } from '@/lib/init';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -18,9 +18,10 @@ const tradeSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    await ensureInitialized();
     const body = await request.json();
     const parsed = tradeSchema.parse(body);
-    const result = executeTrade(parsed);
+    const result = await executeTrade(parsed);
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const history = portfolioManager.getTradeHistory();
+  await ensureInitialized();
+  const history = await portfolioManager.getTradeHistory();
   return NextResponse.json(history);
 }

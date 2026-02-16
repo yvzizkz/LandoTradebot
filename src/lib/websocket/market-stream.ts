@@ -1,5 +1,6 @@
 import { marketRegistry } from '@/lib/markets/registry';
 import { MarketType, CurrentPrice, MARKET_TYPES } from '@/types/market';
+import { ensureInitialized } from '@/lib/init';
 
 export interface StreamUpdate {
   marketType: MarketType;
@@ -30,29 +31,33 @@ class MarketStream {
     this.isRunning = false;
   }
 
-  private tick(): void {
-    const allUpdates = marketRegistry.tickAll();
-    const streamUpdates: StreamUpdate[] = [];
+  private async tick(): Promise<void> {
+    try {
+      await ensureInitialized();
+      const allUpdates = await marketRegistry.tickAll();
+      const streamUpdates: StreamUpdate[] = [];
 
-    for (const [marketType, prices] of allUpdates) {
-      const priceRecord: Record<string, CurrentPrice> = {};
-      for (const [assetId, price] of prices) {
-        priceRecord[assetId] = price;
+      for (const [marketType, prices] of allUpdates) {
+        const priceRecord: Record<string, CurrentPrice> = {};
+        for (const [assetId, price] of prices) {
+          priceRecord[assetId] = price;
+        }
+        streamUpdates.push({
+          marketType,
+          prices: priceRecord,
+          timestamp: Date.now(),
+        });
       }
-      streamUpdates.push({
-        marketType,
-        prices: priceRecord,
-        timestamp: Date.now(),
-      });
-    }
 
-    for (const listener of this.listeners) {
-      try {
-        listener(streamUpdates);
-      } catch {
-        // Remove broken listeners
-        this.listeners.delete(listener);
+      for (const listener of this.listeners) {
+        try {
+          listener(streamUpdates);
+        } catch {
+          this.listeners.delete(listener);
+        }
       }
+    } catch (err) {
+      console.error('[MarketStream] tick error:', err);
     }
   }
 
@@ -69,14 +74,15 @@ class MarketStream {
     };
   }
 
-  getLatestPrices(): StreamUpdate[] {
+  async getLatestPrices(): Promise<StreamUpdate[]> {
+    await ensureInitialized();
     const updates: StreamUpdate[] = [];
     for (const mt of MARKET_TYPES) {
       const provider = marketRegistry.getProvider(mt);
-      const assets = provider.getAssets();
+      const assets = await provider.getAssets();
       const prices: Record<string, CurrentPrice> = {};
       for (const asset of assets) {
-        prices[asset.id] = provider.getCurrentPrice(asset.id);
+        prices[asset.id] = await provider.getCurrentPrice(asset.id);
       }
       updates.push({ marketType: mt, prices, timestamp: Date.now() });
     }
